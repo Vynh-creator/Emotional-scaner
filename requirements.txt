@@ -6,3 +6,9 @@ matplotlib
 pandas
 tqdm
 scikit-learn
+sys
+cv2
+asyncio
+time
+PyQt6
+oncurrent
