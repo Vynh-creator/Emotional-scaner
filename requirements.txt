@@ -6,9 +6,12 @@ matplotlib
 pandas
 tqdm
 scikit-learn
-sys
-cv2
 asyncio
-time
 PyQt6
-oncurrent
+sounddevice
+qasync
+torchaudio
+librosa
+mediapipe==0.10.14
+transformers
+python-dotenv
