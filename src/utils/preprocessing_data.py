@@ -14,7 +14,7 @@ def preprocess_data(video_frames, audio_chunk,device, audio_sr, processor, w2v_m
         frames_array=video_frames,
         detector=detector,
         device=device,
-        num_faces=16
+        num_faces=3
     )
     x_mfcc, x_w2v = process_audio_chunk(audio_chunk, audio_sr, device,processor,w2v_model)
     left_eye, right_eye = preprocess_pupil(video_frames, device)

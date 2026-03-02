@@ -35,7 +35,7 @@ transform_vitals = transforms.Compose([
 ])
 
 
-def preprocess_faces_array(frames_array, detector, device, num_faces=16):
+def preprocess_faces_array(frames_array, detector, device, num_faces=3):
     frames_array = np.asarray(frames_array)
     if frames_array.max() <= 1.0:
         frames_array = (frames_array * 255).astype(np.uint8)
@@ -48,38 +48,49 @@ def preprocess_faces_array(frames_array, detector, device, num_faces=16):
 
     faces_rgb_list = []
 
-    for idx in indices:
-        frame_bgr = frames_array[idx]
+
+    if n > 0:
+        frame_bgr = frames_array[0]
         h, w = frame_bgr.shape[:2]
         detector.setInputSize((w, h))
 
+
+        middle_idx = n // 2
+        frame_bgr = frames_array[middle_idx]
         _, faces = detector.detect(frame_bgr)
-        if faces is None or len(faces) == 0:
-            continue
 
-        x, y, bw, bh = faces[0][:4].astype(int)
-        x1, y1 = max(0, x), max(0, y)
-        x2, y2 = min(w, x + bw), min(h, y + bh)
+        if faces is not None and len(faces) > 0:
+            x, y, bw, bh = faces[0][:4].astype(int)
+            x1, y1 = max(0, x), max(0, y)
+            x2, y2 = min(w, x + bw), min(h, y + bh)
 
-        face_bgr = frame_bgr[y1:y2, x1:x2]
-        if face_bgr.size == 0:
-            continue
+            face_bgr = frame_bgr[y1:y2, x1:x2]
+            if face_bgr.size > 0:
+                face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
+                faces_rgb_list.append(Image.fromarray(face_rgb))
 
-        face_rgb = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2RGB)
-        faces_rgb_list.append(Image.fromarray(face_rgb))
+
+    if not faces_rgb_list:
+        faces_rgb_list = [Image.new("RGB", (224, 224), (128, 128, 128)) for _ in range(num_faces)]
+
 
     while len(faces_rgb_list) < num_faces:
-        faces_rgb_list.append(
-            faces_rgb_list[-1] if faces_rgb_list else Image.new("RGB", (224, 224), (128, 128, 128))
-        )
-    faces_rgb_list = faces_rgb_list[:num_faces]
+        faces_rgb_list.append(faces_rgb_list[-1])
 
-    model1 = torch.stack([transform_drowsy(x) for x in faces_rgb_list]).float().to(device)
-    model2 = torch.stack([transform_involvement(x) for x in faces_rgb_list]).float().unsqueeze(0).to(device)
-    model3 = torch.stack([transform_emotion_cnn(x) for x in faces_rgb_list]).float().to(device)
-    model4 = torch.stack([transform_vitals(x) for x in faces_rgb_list]).float().unsqueeze(0).to(device)
+    faces_rgb = torch.stack([transform_drowsy(x) for x in faces_rgb_list], dim=0).float().to(device)
+    x_drowsy = faces_rgb
 
-    return model1, model2, model3, model4
+    faces_rgb = torch.stack([transform_involvement(x) for x in faces_rgb_list], dim=0).float().to(device)
+    x_involvement = faces_rgb.unsqueeze(0)
+
+    faces_rgb = torch.stack([transform_emotion_cnn(x) for x in faces_rgb_list], dim=0).float().to(device)
+    x_emotion = faces_rgb
+
+    faces_rgb = torch.stack([transform_vitals(x) for x in faces_rgb_list], dim=0).float().to(device)
+    x_vitals = faces_rgb.unsqueeze(0)
+
+    return x_drowsy, x_involvement, x_emotion, x_vitals
+
 
 
 melkwargs = {"n_fft": 400, "n_mels": 40, "hop_length": 160}
