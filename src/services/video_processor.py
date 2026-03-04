@@ -33,7 +33,7 @@ PATHS = {
     "vitals": str(ROOT / "models" / "best_model_vitals.pth"),
 }
 
-
+w2v_model, processor, models_out, detector=[],[],[],[]
 def _fmt_tensor(t, max_items=30, prec=4):
     if t is None:
         return "None"
@@ -182,7 +182,7 @@ class VideoRecorder(QWidget):
         controls.addWidget(QLabel("Размер чанка (сек):"))
         self.interval_spin = QSpinBox()
         self.interval_spin.setRange(1, 10)
-        self.interval_spin.setValue(3)
+        self.interval_spin.setValue(10)
         controls.addWidget(self.interval_spin)
         layout.addLayout(controls)
 
@@ -375,24 +375,9 @@ def get_working_camera_index():
     return 0
 
 
-async def run_app(app: QApplication):
+async def run_app(app: QApplication, window: VideoRecorder):
     camera_idx = get_working_camera_index()
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    w2v_model, processor, models_out, detector = load_all(device, PATHS)
-
     loop = asyncio.get_running_loop()
-
-    window = VideoRecorder(
-        device=device,
-        w2v_model=w2v_model,
-        processor=processor,
-        models=models_out,
-        detector=detector,
-        aio_loop=loop,
-        camera_idx=camera_idx,
-        sample_rate=44100,
-    )
     window.show()
 
     await window.deepseek.start()
@@ -404,9 +389,34 @@ async def run_app(app: QApplication):
     await window.deepseek.stop()
 
 
+
+
 def start():
     app = QApplication(sys.argv)
     loop = QEventLoop(app)
     asyncio.set_event_loop(loop)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    w2v_model, processor, models_out, detector = load_all(device, PATHS)
+
+
+    window = VideoRecorder(
+        device=device,
+        w2v_model=w2v_model,
+        processor=processor,
+        models=models_out,
+        detector=detector,
+        aio_loop=loop,
+        camera_idx=0,
+        sample_rate=44100,
+    )
+
+    window.show()
+    window.info_label.setText("Готов к работе")
+
     with loop:
-        loop.run_until_complete(run_app(app))
+        loop.run_until_complete(run_app(app, window))
+
+
+
